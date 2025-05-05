@@ -216,8 +216,9 @@ env_colors = {
 }
 
 # ---------- MAIN DASHBOARD TABS ----------
+# Reduced to 4 tabs by removing the Statistical Tests tab
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Bacteria vs Environmental Factors", "Correlation Analysis", "Regression Analysis", "Statistical Tests"])
+tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Bacteria vs Environmental Factors", "Correlation Analysis", "Regression Analysis"])
 
 # ---------- TAB 1: OVERVIEW ----------
 
@@ -328,40 +329,57 @@ with tab1:
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # Overall correlations with bacteria heatmap
+    # Overall correlations with bacteria heatmap - IMPROVED VERSION with category selection
     st.subheader("Overall Correlation Heatmap")
     
-    # Create correlation matrix of all environmental factors
-    correlation_columns = [
-        'Site 1 EC Inv', 'Site 1 IE Inv',
-        'Rainfall_last_24h', 'Rainfall_last_48h', 'Rainfall_last_72h',
-        'Tide Astronomical (MaOD)',
-        'Average Discharge_last_24h', 'Average Discharge_last_48h', 'Average Discharge_last_72h',
-        'Average UV_last_24h', 'Average UV_last_48h', 'Average UV_last_72h',
-        'Average WindSpeed_last_24h', 'Average WindSpeed_last_48h', 'Average WindSpeed_last_72h'
-    ]
+    # Add a multi-select dropdown for factors to include
+    factor_categories = {
+        "Bacteria": ['Site 1 EC Inv', 'Site 1 IE Inv'],
+        "Rainfall": ['Rainfall_last_24h', 'Rainfall_last_48h', 'Rainfall_last_72h'],
+        "Tide": ['Tide Astronomical (MaOD)'],
+        "Sewage Discharge": ['Average Discharge_last_24h', 'Average Discharge_last_48h', 'Average Discharge_last_72h'],
+        "UV Index": ['Average UV_last_24h', 'Average UV_last_48h', 'Average UV_last_72h'],
+        "Wind Speed": ['Average WindSpeed_last_24h', 'Average WindSpeed_last_48h', 'Average WindSpeed_last_72h']
+    }
+    
+    # Let user select factor categories to include
+    selected_categories = st.multiselect(
+        "Select Categories to Include in Correlation Heatmap",
+        options=list(factor_categories.keys()),
+        default=["Bacteria", "Rainfall"]
+    )
+    
+    # Create a list of columns based on selected categories
+    selected_factors = []
+    for category in selected_categories:
+        selected_factors.extend(factor_categories[category])
     
     # Only include columns that exist in our filtered data
-    corr_columns = [col for col in correlation_columns if col in filtered_data.columns]
+    corr_columns = [col for col in selected_factors if col in filtered_data.columns]
     
-    # Create correlation matrix
-    corr_matrix = filtered_data[corr_columns].corr()
-    
-    # Create a heatmap using Plotly
-    fig = px.imshow(
-        corr_matrix,
-        text_auto=True,
-        color_continuous_scale='RdBu_r',
-        zmin=-1, zmax=1,
-        title="Correlation Matrix of All Factors"
-    )
-    
-    fig.update_layout(
-        width=900,
-        height=700
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
+    if corr_columns:
+        # Create correlation matrix with only selected factors
+        corr_matrix = filtered_data[corr_columns].corr()
+        
+        # Create a heatmap using Plotly
+        fig = px.imshow(
+            corr_matrix,
+            text_auto=True,
+            color_continuous_scale='RdBu_r',
+            zmin=-1, zmax=1,
+            title="Correlation Matrix of Selected Factors"
+        )
+        
+        # Improve readability
+        fig.update_layout(
+            width=900,
+            height=700,
+            xaxis_tickangle=-45,  # Angle the x-axis labels for better readability
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Please select at least one factor category to display the correlation heatmap.")
     
     # Data preview table
     st.subheader("Data Preview")
@@ -768,7 +786,7 @@ with tab3:
         
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.warning("Please select at least one factor to include in the correlation matrix.")
+        st.warning("Please select at least one factor to display the correlation matrix.")
 
 # ---------- TAB 4: REGRESSION ANALYSIS ----------
 # Based on the regression models from the original notebook
@@ -948,3 +966,11 @@ with tab4:
             st.warning("Not enough data points for regression analysis. Please select a wider date range or different variables.")
     else:
         st.warning("Please select at least one predictor for the regression model.")
+
+# Footer
+st.markdown("---")
+st.write("Data source: Environmental Agency - Water Quality Monitoring System (2023)")
+st.write("Dashboard created based on original statistical analysis from Environmental Agency Hackathon")
+
+# Run the app
+# To run: streamlit run app.py
