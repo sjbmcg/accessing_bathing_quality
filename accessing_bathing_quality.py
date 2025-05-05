@@ -209,6 +209,17 @@ factor_mapping = {
 
 factor_col = factor_mapping[env_factor]
 
+# Environment factor colors - new consistent color mapping
+env_colors = {
+    "Rainfall": "#0072B2",         # Blue
+    "Tide": "#009E73",             # Green
+    "Sewage Discharge": "#D55E00", # Orange/brown
+    "UV Index": "#E69F00",         # Yellow/amber
+    "Wind Speed": "#56B4E9",       # Light blue
+    "E. coli (EC)": "#CC79A7",     # Pink
+    "Intestinal Enterococci (IE)": "#CC79A7"  # Pink (same for both bacteria types)
+}
+
 # ---------- MAIN DASHBOARD TABS ----------
 # The dashboard is organized into tabs for different types of analysis
 
@@ -254,7 +265,21 @@ with tab1:
         filtered_data, 
         x='Date', 
         y=bacteria_col,
-        title=f"{bacteria_type} Levels Over Time"
+        title=f"{bacteria_type} Levels Over Time",
+        color_discrete_sequence=[env_colors[bacteria_type]]  # Use consistent color from mapping
+    )
+    
+    # Improve legend formatting
+    fig.update_layout(
+        legend=dict(
+            title="",
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        yaxis_title="CFU (Colony Forming Units)"
     )
     
     st.plotly_chart(fig, use_container_width=True)
@@ -264,28 +289,45 @@ with tab1:
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
+    # Add bacteria trace with consistent color
     fig.add_trace(
         go.Scatter(
             x=filtered_data['Date'],
             y=filtered_data[bacteria_col],
-            name=bacteria_type,
-            line=dict(color='red', width=2)
+            name=f"{bacteria_type}",
+            line=dict(
+                color=env_colors[bacteria_type], 
+                width=2
+            )
         )
     )
     
+    # Add environmental factor trace with consistent color
     fig.add_trace(
         go.Scatter(
             x=filtered_data['Date'],
             y=filtered_data[factor_col],
-            name=env_factor,
-            line=dict(color='blue', width=2, dash='dot')
+            name=f"{env_factor}",
+            line=dict(
+                color=env_colors[env_factor], 
+                width=2, 
+                dash='dot'
+            )
         ),
         secondary_y=True
     )
     
+    # Improve layout and legend
     fig.update_layout(
         title=f"{bacteria_type} vs {env_factor} Over Time",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(
+            title="",
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
     
     fig.update_yaxes(title_text=f"{bacteria_type} (CFU)", secondary_y=False)
@@ -306,6 +348,7 @@ with tab2:
     # Scatter plot with regression line - Based on regression plots from original notebook
     st.subheader(f"{bacteria_type} vs {env_factor}")
     
+    # Create scatter plot with consistent colors
     fig = px.scatter(
         filtered_data, 
         x=factor_col, 
@@ -315,8 +358,14 @@ with tab2:
             factor_col: f"{env_factor}",
             bacteria_col: f"{bacteria_type} (CFU)"
         },
-        title=f"Relationship between {bacteria_type} and {env_factor}"
+        title=f"Relationship between {bacteria_type} and {env_factor}",
+        color_discrete_sequence=[env_colors[bacteria_type]]  # Use consistent color
     )
+    
+    # Change trendline color to a darker shade for better visibility
+    for trace in fig.data:
+        if trace.mode == "lines":
+            trace.line.color = "#882255"  # Darker version of bacteria color
     
     # Calculate correlation and add it to the plot - Pearson correlations from original notebook
     corr, p_val = pearsonr(filtered_data[factor_col].fillna(0), filtered_data[bacteria_col].fillna(0))
@@ -330,6 +379,18 @@ with tab2:
         bgcolor="white",
         bordercolor="black",
         borderwidth=1
+    )
+    
+    # Update legend
+    fig.update_layout(
+        legend=dict(
+            title="",
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
     
     st.plotly_chart(fig, use_container_width=True)
@@ -364,22 +425,27 @@ with tab2:
     if lag_data:
         lag_df = pd.DataFrame(lag_data)
         
-        # Create a bar chart using go.Figure instead of px.bar to avoid DataFrame issues
+        # Create a bar chart with consistent colors
         fig = go.Figure()
         
         for idx, row in lag_df.iterrows():
-            color = "blue" if row["Significance"] == "Significant" else "gray"
+            # Use different color intensities based on significance
+            color = env_colors[env_factor] if row["Significance"] == "Significant" else "#CCCCCC"
             fig.add_trace(go.Bar(
                 x=[row["Lag Period"]], 
                 y=[row["Correlation Coefficient"]],
                 name=row["Lag Period"],
-                marker_color=color
+                marker_color=color,
+                text=[f"{row['Correlation Coefficient']:.2f}<br>{row['Significance']}"],
+                textposition="auto"
             ))
         
+        # Improve layout
         fig.update_layout(
             title=f"Impact of Time Lag on Correlation with {bacteria_type}",
             xaxis_title="Lag Period",
-            yaxis_title="Pearson Correlation (r)"
+            yaxis_title="Pearson Correlation (r)",
+            showlegend=False
         )
         
         st.plotly_chart(fig, use_container_width=True)
@@ -418,16 +484,21 @@ with tab2:
     
     factor_df = pd.DataFrame(factor_data)
     
-    # Create bar chart of correlations for all factors
+    # Create bar chart with consistent colors for each factor
     fig = go.Figure()
     
     for idx, row in factor_df.iterrows():
-        color = "blue" if row["Significance"] == "Significant" else "gray"
+        factor = row["Environmental Factor"]
+        # Use colors from our environmental factor mapping
+        color = env_colors[factor] if row["Significance"] == "Significant" else "#CCCCCC"
+        
         fig.add_trace(go.Bar(
-            x=[row["Environmental Factor"]], 
+            x=[factor], 
             y=[row["Correlation Coefficient"]],
-            name=row["Environmental Factor"],
-            marker_color=color
+            name=factor,
+            marker_color=color,
+            text=[f"{row['Correlation Coefficient']:.2f}<br>{row['Significance']}"],
+            textposition="auto"
         ))
     
     # Add reference line at y=0
@@ -437,13 +508,15 @@ with tab2:
         y0=0, 
         x1=len(env_factors) - 0.5, 
         y1=0,
-        line=dict(color="red", width=2, dash="dash")
+        line=dict(color="black", width=1, dash="dash")
     )
     
+    # Improve layout
     fig.update_layout(
         title=f"Correlation of Environmental Factors with {bacteria_type}",
         xaxis_title="Environmental Factor",
-        yaxis_title="Pearson Correlation (r)"
+        yaxis_title="Pearson Correlation (r)",
+        showlegend=False
     )
     
     st.plotly_chart(fig, use_container_width=True)
@@ -478,15 +551,34 @@ with tab3:
         # Create correlation matrix - Based on correlation heatmaps in original notebook
         correlation_df = filtered_data[selected_columns].corr()
         
-        # Create heatmap visualization
+        # Rename columns for better display
+        display_names = {}
+        for factor, col in columns_mapping.items():
+            if col in correlation_df.columns:
+                display_names[col] = factor
+        
+        correlation_df_display = correlation_df.rename(columns=display_names, index=display_names)
+        
+        # Create improved heatmap visualization with better color scheme
         fig = px.imshow(
-            correlation_df,
-            x=correlation_df.columns,
-            y=correlation_df.columns,
-            color_continuous_scale="RdBu_r",
+            correlation_df_display,
+            x=correlation_df_display.columns,
+            y=correlation_df_display.columns,
+            color_continuous_scale="RdBu_r",  # Red-Blue scale is good for correlations
             zmin=-1, zmax=1,
             text_auto=True,
             title="Correlation Matrix"
+        )
+        
+        # Improve layout
+        fig.update_layout(
+            xaxis_title="",
+            yaxis_title="",
+            coloraxis_colorbar=dict(
+                title="Correlation",
+                tickvals=[-1, -0.5, 0, 0.5, 1],
+                ticktext=["-1.0", "-0.5", "0.0", "0.5", "1.0"]
+            )
         )
         
         st.plotly_chart(fig, use_container_width=True)
@@ -516,7 +608,14 @@ with tab3:
         detailed_corr_df = pd.DataFrame(detailed_corr)
         detailed_corr_df = detailed_corr_df.sort_values(by="Correlation Coefficient", key=abs, ascending=False)
         
-        st.dataframe(detailed_corr_df, use_container_width=True)
+        # Apply conditional formatting to the displayed dataframe
+        st.dataframe(
+            detailed_corr_df.style.format({
+                "Correlation Coefficient": "{:.3f}",
+                "p-value": "{:.4f}"
+            }),
+            use_container_width=True
+        )
     else:
         st.warning("Please select at least one factor to include in the correlation matrix.")
 
@@ -565,20 +664,40 @@ with tab4:
             f_stat = model.fvalue
             f_pvalue = model.f_pvalue
             
-            # Display key metrics in columns
+            # Display key metrics in columns with improved styling
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("R-squared", f"{r_squared:.3f}")
+                st.metric(
+                    label="R-squared",
+                    value=f"{r_squared:.3f}",
+                    delta=None,
+                    delta_color="normal"
+                )
             
             with col2:
-                st.metric("Adjusted R-squared", f"{adj_r_squared:.3f}")
+                st.metric(
+                    label="Adjusted R-squared",
+                    value=f"{adj_r_squared:.3f}",
+                    delta=None,
+                    delta_color="normal"
+                )
             
             with col3:
-                st.metric("F-statistic", f"{f_stat:.2f}")
+                st.metric(
+                    label="F-statistic",
+                    value=f"{f_stat:.2f}",
+                    delta=None,
+                    delta_color="normal"
+                )
             
             with col4:
-                st.metric("F-test p-value", f"{f_pvalue:.4f}")
+                st.metric(
+                    label="F-test p-value",
+                    value=f"{f_pvalue:.4f}",
+                    delta=None,
+                    delta_color="normal"
+                )
             
             # Feature importance visualization - Extension of regression analysis from original notebook
             st.subheader("Feature Importance")
@@ -594,7 +713,7 @@ with tab4:
             std_coeffs = model_std.params[1:].abs()
             std_coeffs = std_coeffs / std_coeffs.sum()  # Normalize to sum to 1
             
-            # Create feature importance bar chart
+            # Create feature importance bar chart with consistent colors
             importance_df = pd.DataFrame({
                 'Feature': [factor for factor in predictors if columns_mapping[factor] in X_clean.columns],
                 'Importance': std_coeffs.values
@@ -602,21 +721,26 @@ with tab4:
             
             importance_df = importance_df.sort_values('Importance', ascending=False)
             
-            # Use go.Figure instead of px.bar to avoid issues
+            # Create bar chart with consistent colors for each feature
             fig = go.Figure()
             
             for idx, row in importance_df.iterrows():
+                factor = row["Feature"]
                 fig.add_trace(go.Bar(
-                    x=[row["Feature"]], 
+                    x=[factor], 
                     y=[row["Importance"]],
-                    name=row["Feature"],
-                    marker_color="blue"
+                    name=factor,
+                    marker_color=env_colors[factor],
+                    text=[f"{row['Importance']:.3f}"],
+                    textposition="auto"
                 ))
             
+            # Improve layout
             fig.update_layout(
                 title="Relative Feature Importance",
                 xaxis_title="Feature",
-                yaxis_title="Importance"
+                yaxis_title="Importance (Normalized)",
+                showlegend=False
             )
             
             st.plotly_chart(fig, use_container_width=True)
