@@ -782,7 +782,10 @@ with tab4:
     st.header("Regression Analysis")
     
     # Multiple regression analysis
-    st.subheader("Multiple Regression Model")
+    st.subheader(f"Multiple Regression Model for {bacteria_type}")  # Added bacteria type to title
+    
+    # Display current bacteria type being analyzed
+    st.info(f"Currently analyzing {bacteria_type} data (column: {bacteria_col})")
     
     # User-selectable predictors for regression
     predictors = st.multiselect(
