@@ -404,7 +404,7 @@ with tab2:
     # Scatter plot with regression line and confidence intervals
     st.subheader(f"{bacteria_type} vs {env_factor}")
     
-    # Create scatter plot with consistent colors and confidence intervals
+    # Create scatter plot with consistent colors 
     fig = px.scatter(
         filtered_data, 
         x=factor_col, 
@@ -415,9 +415,16 @@ with tab2:
             bacteria_col: f"{bacteria_type} ({env_units[bacteria_type]})"
         },
         title=f"Relationship between {bacteria_type} and {env_factor}",
-        color_discrete_sequence=[env_colors[bacteria_type]],
-        trendline_options=dict(frac=0.95, confidence_band=True)
+        color_discrete_sequence=[env_colors[bacteria_type]]
     )
+    
+    # The confidence interval approach needs to be done manually with seaborn below
+    # We'll add an explanation for this relationship instead
+    st.info("""
+    This scatter plot shows the relationship between bacteria levels and the selected environmental factor.
+    The trend line indicates the general relationship direction, and the correlation coefficient shows the strength of this relationship.
+    A p-value < 0.05 indicates a statistically significant relationship.
+    """)
     
     # Change trendline color to a darker shade for better visibility
     for trace in fig.data:
