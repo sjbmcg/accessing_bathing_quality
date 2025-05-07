@@ -242,25 +242,29 @@ with tab1:
     with col1:
         st.metric(
             label=f"Average {bacteria_type}",
-            value=f"{filtered_data[bacteria_col].mean():.1f} {env_units[bacteria_type]}"
+            value=f"{filtered_data[bacteria_col].mean():.1f}",
+            delta=f"{env_units[bacteria_type]}"
         )
     
     with col2:
         st.metric(
             label=f"Average {env_factor}",
-            value=f"{filtered_data[factor_col].mean():.2f} {env_units[env_factor]}"
+            value=f"{filtered_data[factor_col].mean():.2f}",
+            delta=f"{env_units[env_factor]}"
         )
     
     with col3:
         st.metric(
             label=f"Max {bacteria_type}",
-            value=f"{filtered_data[bacteria_col].max():.1f} {env_units[bacteria_type]}"
+            value=f"{filtered_data[bacteria_col].max():.1f}",
+            delta=f"{env_units[bacteria_type]}"
         )
     
     with col4:
         st.metric(
             label=f"Min {bacteria_type}",
-            value=f"{filtered_data[bacteria_col].min():.1f} {env_units[bacteria_type]}"
+            value=f"{filtered_data[bacteria_col].min():.1f}",
+            delta=f"{env_units[bacteria_type]}"
         )
     
     # Time series plot of bacteria levels
