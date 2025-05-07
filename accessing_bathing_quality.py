@@ -13,14 +13,14 @@ from scipy import stats
 
 # Set page configuration
 st.set_page_config(
-    page_title="Water Quality Dashboard",
+    page_title="Bathing Water Quality Dashboard",
     page_icon="💧",
     layout="wide"
 )
 
 # Header
-st.title('Water Quality Analysis Dashboard')
-st.write("Environmental Agency - Water Quality Monitoring System")
+st.title('Bathing Water Quality Analysis Dashboard')
+st.write("Environmental Agency - Bathing Water Quality Monitoring System")
 
 # ---------- DATA LOADING AND PROCESSING FUNCTIONS ----------
 
@@ -202,7 +202,17 @@ factor_mapping = {
     "Tide": "Tide Astronomical (MaOD)"
 }
 
+# Add units to environmental factors for display
+factor_units = {
+    "Rainfall": "mm",
+    "Tide": "mm",
+    "Sewage Discharge": "l/s",
+    "UV Index": "",
+    "Wind Speed": "m/s"
+}
+
 factor_col = factor_mapping[env_factor]
+factor_unit = factor_units[env_factor]
 
 # Environment factor colors - consistent color mapping
 env_colors = {
@@ -216,7 +226,7 @@ env_colors = {
 }
 
 # ---------- MAIN DASHBOARD TABS ----------
-# Reduced to 4 tabs by removing the Statistical Tests tab
+
 
 tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Bacteria vs Environmental Factors", "Correlation Analysis", "Regression Analysis"])
 
@@ -235,9 +245,13 @@ with tab1:
         )
     
     with col2:
+        display_value = f"{filtered_data[factor_col].mean():.2f}"
+        if factor_unit:
+            display_value += f" {factor_unit}"
+        
         st.metric(
-            label=f"Average {env_factor}",
-            value=f"{filtered_data[factor_col].mean():.2f}"
+            label=f"Average {env_factor} (last {lag_period})",
+            value=display_value
         )
     
     with col3:
@@ -324,8 +338,13 @@ with tab1:
         )
     )
     
+    # Set axis titles with units
     fig.update_yaxes(title_text=f"{bacteria_type} (CFU)", secondary_y=False)
-    fig.update_yaxes(title_text=f"{env_factor}", secondary_y=True)
+    
+    secondary_y_title = f"{env_factor}"
+    if factor_unit:
+        secondary_y_title += f" ({factor_unit})"
+    fig.update_yaxes(title_text=secondary_y_title, secondary_y=True)
     
     st.plotly_chart(fig, use_container_width=True)
     
@@ -390,27 +409,23 @@ with tab1:
 with tab2:
     st.header("Bacteria vs Environmental Factors")
     
-    # Scatter plot with regression line
+    # Scatter plot with regression line and confidence interval
     st.subheader(f"{bacteria_type} vs {env_factor}")
     
-    # Create scatter plot with consistent colors
+    # Create scatter plot with consistent colors and confidence interval
     fig = px.scatter(
         filtered_data, 
         x=factor_col, 
         y=bacteria_col,
         trendline="ols",
+        trendline_color_override="#882255",
         labels={
-            factor_col: f"{env_factor}",
+            factor_col: f"{env_factor} ({factor_unit})" if factor_unit else f"{env_factor}",
             bacteria_col: f"{bacteria_type} (CFU)"
         },
-        title=f"Relationship between {bacteria_type} and {env_factor}",
+        title=f"Relationship between {bacteria_type} and {env_factor} with 95% CI",
         color_discrete_sequence=[env_colors[bacteria_type]]
     )
-    
-    # Change trendline color to a darker shade for better visibility
-    for trace in fig.data:
-        if trace.mode == "lines":
-            trace.line.color = "#882255"  # Darker version of bacteria color
     
     # Calculate correlation and add it to the plot
     corr, p_val = pearsonr(filtered_data[factor_col].fillna(0), filtered_data[bacteria_col].fillna(0))
@@ -441,7 +456,7 @@ with tab2:
     st.plotly_chart(fig, use_container_width=True)
     
     # Compare the effect of different lag periods
-    st.subheader("Impact of Time Lag")
+    st.subheader("Effect of Time Lags on Correlation")
     
     if env_factor != "Tide":  # Skip for Tide as it doesn't have lag periods
         # Calculate correlation for different lag periods
@@ -486,8 +501,14 @@ with tab2:
                 ))
             
             # Improve layout
+            lagged_description = ""
+            if env_factor == "Rainfall":
+                lagged_description = "Sum of precipitation"
+            else:
+                lagged_description = "Average value"
+                
             fig.update_layout(
-                title=f"Impact of Time Lag on Correlation with {bacteria_type}",
+                title=f"Effect of Different Time Lags on Correlation with {bacteria_type}<br><sup>{lagged_description} in time period before sampling</sup>",
                 xaxis_title="Lag Period",
                 yaxis_title="Pearson Correlation (r)",
                 showlegend=False
@@ -495,7 +516,7 @@ with tab2:
             
             st.plotly_chart(fig, use_container_width=True)
     else:
-        st.write("No lag analysis available for this environmental factor.")
+        st.write("No lag analysis available for Tide as it doesn't have lagged measurements.")
     
     # Compare all environmental factors
     st.subheader("Comparison of All Environmental Factors")
@@ -565,56 +586,6 @@ with tab2:
     )
     
     st.plotly_chart(fig, use_container_width=True)
-    
-    # Add scatter plots with 95% confidence intervals
-    st.subheader("Scatter Plots with Confidence Intervals")
-    
-    # Create two columns for side-by-side plots
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Create scatter plot with regression line and confidence interval
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        sns.regplot(
-            data=filtered_data,
-            x=factor_col,
-            y=bacteria_col,
-            scatter_kws={'alpha': 0.6},
-            line_kws={'color': 'red'},
-            ci=95
-        )
-        
-        plt.title(f"{bacteria_type} vs {env_factor} with 95% CI")
-        plt.xlabel(f"{env_factor}")
-        plt.ylabel(f"{bacteria_type} (CFU)")
-        plt.tight_layout()
-        
-        st.pyplot(fig)
-    
-    with col2:
-        # If we're looking at Rainfall factor, show alternative visualization
-        alt_factor = "Rainfall" if env_factor != "Rainfall" else "Sewage Discharge"
-        alt_col = f"{alt_factor}_last_{lag_period}" if alt_factor != "Tide" else "Tide Astronomical (MaOD)"
-        
-        if alt_col in filtered_data.columns:
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            sns.regplot(
-                data=filtered_data,
-                x=alt_col,
-                y=bacteria_col,
-                scatter_kws={'alpha': 0.6},
-                line_kws={'color': 'red'},
-                ci=95
-            )
-            
-            plt.title(f"{bacteria_type} vs {alt_factor} with 95% CI")
-            plt.xlabel(f"{alt_factor}")
-            plt.ylabel(f"{bacteria_type} (CFU)")
-            plt.tight_layout()
-            
-            st.pyplot(fig)
 
 # ---------- TAB 3: CORRELATION ANALYSIS ----------
 
@@ -728,12 +699,16 @@ with tab3:
                 for lag in ["24h", "48h", "72h"]:
                     if factor == "Rainfall":
                         col = f"Rainfall_last_{lag}"
+                        lag_type = "Sum of precipitation"
                     elif factor == "Sewage Discharge":
                         col = f"Average Discharge_last_{lag}"
+                        lag_type = "Average discharge"
                     elif factor == "UV Index":
                         col = f"Average UV_last_{lag}"
+                        lag_type = "Average UV index"
                     elif factor == "Wind Speed":
                         col = f"Average WindSpeed_last_{lag}"
+                        lag_type = "Average wind speed"
                     
                     if col in filtered_data.columns:
                         corr, p_val = pearsonr(filtered_data[bacteria_col].fillna(0), 
@@ -743,6 +718,7 @@ with tab3:
                             "Bacteria Type": bacteria,
                             "Environmental Factor": factor,
                             "Lag Period": lag,
+                            "Lag Type": lag_type,
                             "Correlation": corr,
                             "p-value": p_val,
                             "Significance": "Significant" if p_val < 0.05 else "Not Significant"
@@ -774,6 +750,10 @@ with tab3:
             title=f"Correlation of {bacteria_choice} with Environmental Factors by Lag Period"
         )
         
+        # Add explanation of lag periods
+        lag_explanation = "Rainfall: Sum of precipitation in period before sampling<br>"
+        lag_explanation += "Other factors: Average value in period before sampling"
+        
         fig.update_layout(
             xaxis_title="Lag Period",
             yaxis_title="Environmental Factor",
@@ -781,196 +761,17 @@ with tab3:
                 title="Correlation",
                 tickvals=[-1, -0.5, 0, 0.5, 1],
                 ticktext=["-1.0", "-0.5", "0.0", "0.5", "1.0"]
-            )
+            ),
+            annotations=[
+                dict(
+                    x=0.5,
+                    y=-0.15,
+                    xref="paper",
+                    yref="paper",
+                    text=lag_explanation,
+                    showarrow=False,
+                    font=dict(size=10),
+                    align="center"
+                )
+            ]
         )
-        
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Please select at least one factor to display the correlation matrix.")
-
-# ---------- TAB 4: REGRESSION ANALYSIS ----------
-# Based on the regression models from the original notebook
-
-with tab4:
-    st.header("Regression Analysis")
-    
-    # Multiple regression analysis
-    st.subheader("Multiple Regression Model")
-    
-    # User-selectable predictors for regression
-    predictors = st.multiselect(
-        "Select Predictors for Multiple Regression",
-        options=["Rainfall", "Tide", "Sewage Discharge", "UV Index", "Wind Speed"],
-        default=["Rainfall", "Sewage Discharge", "UV Index"]
-    )
-    
-    predictor_columns = [columns_mapping[factor] for factor in predictors if columns_mapping[factor] in filtered_data.columns]
-    
-    if predictor_columns:
-        # Prepare data for regression
-        X = filtered_data[predictor_columns].copy()
-        y = filtered_data[bacteria_col].copy()
-        
-        # Drop rows with missing values
-        valid_data = pd.concat([X, y], axis=1).dropna()
-        
-        if len(valid_data) > len(predictor_columns) + 1:  # Check if enough data points
-            X_clean = valid_data[predictor_columns]
-            y_clean = valid_data[bacteria_col]
-            
-            # Add constant term
-            X_with_const = sm.add_constant(X_clean)
-            
-            # Fit OLS model
-            model = sm.OLS(y_clean, X_with_const).fit()
-            
-            # Display results
-            st.text(model.summary().as_text())
-            
-            # Extract key metrics
-            r_squared = model.rsquared
-            adj_r_squared = model.rsquared_adj
-            f_stat = model.fvalue
-            f_pvalue = model.f_pvalue
-            
-            # Display key metrics in columns with improved styling
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric(
-                    label="R-squared",
-                    value=f"{r_squared:.3f}",
-                    delta=None,
-                    delta_color="normal"
-                )
-            
-            with col2:
-                st.metric(
-                    label="Adjusted R-squared",
-                    value=f"{adj_r_squared:.3f}",
-                    delta=None,
-                    delta_color="normal"
-                )
-            
-            with col3:
-                st.metric(
-                    label="F-statistic",
-                    value=f"{f_stat:.2f}",
-                    delta=None,
-                    delta_color="normal"
-                )
-            
-            with col4:
-                st.metric(
-                    label="F-test p-value",
-                    value=f"{f_pvalue:.4f}",
-                    delta=None,
-                    delta_color="normal"
-                )
-            
-            # Feature importance visualization
-            st.subheader("Feature Importance")
-            
-            # Standardize predictors to get comparable coefficients
-            X_std = (X_clean - X_clean.mean()) / X_clean.std()
-            X_std = sm.add_constant(X_std)
-            
-            # Fit standardized model
-            model_std = sm.OLS(y_clean, X_std).fit()
-            
-            # Get standardized coefficients (excluding constant)
-            std_coeffs = model_std.params[1:].abs()
-            std_coeffs = std_coeffs / std_coeffs.sum()  # Normalize to sum to 1
-            
-            # Create feature importance bar chart with consistent colors
-            importance_df = pd.DataFrame({
-                'Feature': [factor for factor in predictors if columns_mapping[factor] in X_clean.columns],
-                'Importance': std_coeffs.values
-            })
-            
-            importance_df = importance_df.sort_values('Importance', ascending=False)
-            
-            # Create bar chart with consistent colors for each feature
-            fig = go.Figure()
-            
-            for idx, row in importance_df.iterrows():
-                factor = row["Feature"]
-                fig.add_trace(go.Bar(
-                    x=[factor], 
-                    y=[row["Importance"]],
-                    name=factor,
-                    marker_color=env_colors[factor],
-                    text=[f"{row['Importance']:.3f}"],
-                    textposition="auto"
-                ))
-            
-            # Improve layout
-            fig.update_layout(
-                title="Relative Feature Importance",
-                xaxis_title="Feature",
-                yaxis_title="Importance (Normalized)",
-                showlegend=False
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # UV Index specific analysis (from the notebook)
-            if "UV Index" in predictors:
-                st.subheader("UV Index Impact Analysis")
-                
-                uv_cols = [col for col in predictor_columns if "UV" in col]
-                if uv_cols:
-                    # Prepare data for UV regression
-                    X_uv = filtered_data[uv_cols].copy()
-                    y_uv = filtered_data[bacteria_col].copy()
-                    
-                    # Drop rows with missing values
-                    valid_data_uv = pd.concat([X_uv, y_uv], axis=1).dropna()
-                    
-                    if len(valid_data_uv) > len(uv_cols) + 1:
-                        X_uv_clean = valid_data_uv[uv_cols]
-                        y_uv_clean = valid_data_uv[bacteria_col]
-                        
-                        # Add constant term
-                        X_uv_with_const = sm.add_constant(X_uv_clean)
-                        
-                        # Fit OLS model
-                        uv_model = sm.OLS(y_uv_clean, X_uv_with_const).fit()
-                        
-                        # Display results
-                        st.text("UV Index Regression Model Results:")
-                        st.text(uv_model.summary().as_text())
-                        
-                        # Create a visualization of UV impact
-                        st.subheader("UV Index Effect on Bacteria")
-                        
-                        # Create scatter plot with regression line
-                        fig = px.scatter(
-                            valid_data_uv, 
-                            x=uv_cols[0] if len(uv_cols) > 0 else None,
-                            y=bacteria_col,
-                            trendline="ols",
-                            title=f"Impact of UV Index on {bacteria_type}",
-                            color_discrete_sequence=["#E69F00"]  # UV color
-                        )
-                        
-                        fig.update_layout(
-                            xaxis_title="UV Index",
-                            yaxis_title=f"{bacteria_type} (CFU)"
-                        )
-                        
-                        st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        st.warning("Not enough data points for UV Index regression analysis.")
-        else:
-            st.warning("Not enough data points for regression analysis. Please select a wider date range or different variables.")
-    else:
-        st.warning("Please select at least one predictor for the regression model.")
-
-# Footer
-st.markdown("---")
-st.write("Data source: Environmental Agency - Water Quality Monitoring System (2023)")
-st.write("Dashboard created based on original statistical analysis from Environmental Agency Hackathon")
-
-# Run the app
-# To run: streamlit run app.py
