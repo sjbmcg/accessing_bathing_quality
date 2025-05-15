@@ -25,5 +25,5 @@ Explore different analysis tabs
 Environmental Agency - Bathing Water Quality Monitoring System (2023)
 Created for Environmental Agency Hackathon
 
-### Contributers
+## Contributers
 [@MarionC749](https://github.com/MarionC749)
