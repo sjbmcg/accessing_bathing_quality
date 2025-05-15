@@ -17,7 +17,7 @@ Interactive data visualization
 
 ## Usage
 
-Run streamlit run app.py
+Run streamlit run accessing_bathing_quality.py
 Select date range, bacteria type, and environmental factors
 Explore different analysis tabs
 
